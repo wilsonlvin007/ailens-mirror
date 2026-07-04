@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 日报 · 每日精选</title>
+<meta name="description" content="每日 AI 新闻精选，涵盖技术、应用、硬件、思想四大维度">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f8f9fa;color:#333;line-height:1.6}
+.container{max-width:800px;margin:0 auto;padding:20px}
+header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:40px 20px;text-align:center}
+header h1{font-size:2rem;margin-bottom:10px}
+header p{opacity:.9;font-size:1rem}
+.card{background:#fff;border-radius:12px;padding:24px;margin:20px 0;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.card h3{color:#667eea;margin-bottom:8px;font-size:1.1rem}
+.card .date{color:#999;font-size:.85rem;margin-bottom:12px}
+.card .items{list-style:none}
+.card .items li{padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:.95rem}
+.card .items li:last-child{border:none}
+.card .items li span.tag{display:inline-block;background:#667eea;color:#fff;padding:1px 8px;border-radius:10px;font-size:.75rem;margin-right:6px}
+.read-more{display:inline-block;margin-top:12px;color:#667eea;text-decoration:none;font-weight:600;font-size:.9rem}
+.read-more:hover{text-decoration:underline}
+footer{text-align:center;padding:40px 20px;color:#999;font-size:.85rem}
+footer a{color:#667eea}
+</style>
+</head>
+<body>
+<header>
+<h1>🤖 AI 日报</h1>
+<p>每日 AI 新闻精选 · 技术 / 应用 / 硬件 / 思想</p>
+<p style="margin-top:10px;font-size:.85rem">📡 来源：<a href="https://ailens.news" style="color:#ffd700">ailens.news</a></p>
+</header>
+<div class="container" id="content">
+<p style="text-align:center;padding:40px;color:#999">加载中...</p>
+</div>
+<footer>
+<p>内容自动同步自 <a href="https://ailens.news">ailens.news</a> · 每日更新</p>
+</footer>
+<script>
+const TAG_COLORS = {'technology':'#3b82f6','application':'#10b981','hardware':'#f59e0b','thought':'#8b5cf6'};
+const TAG_NAMES = {'technology':'技术','application':'应用','hardware':'硬件','thought':'思想'};
+
+async function loadContent(){
+try{
+const resp = await fetch('https://ailens.news/feed.json');
+const feed = await resp.json();
+const container = document.getElementById('content');
+let html = '';
+
+feed.items.forEach(item => {
+const date = item.date_published ? new Date(item.date_published).toLocaleDateString('zh-CN',{month:'2-digit',day:'2-digit',weekday:'short'}) : '';
+let itemsHtml = '';
+(item._items || []).forEach(it => {
+const tag = TAG_NAMES[it.category] || it.category;
+const color = TAG_COLORS[it.category] || '#999';
+itemsHtml += `<li><span class="tag" style="background:${color}">${tag}</span> ${it.title}</li>`;
+});
+html += `<div class="card"><h3>${item.title || 'AI 日报'}</h3><div class="date">${date}</div><ul class="items">${itemsHtml}</ul><a href="${item.url || 'https://ailens.news'}" class="read-more" target="_blank">📖 在 ailens.news 阅读全文 →</a></div>`;
+});
+
+container.innerHTML = html || '<p style="text-align:center;padding:40px;color:#999">暂无内容</p>';
+}catch(e){
+document.getElementById('content').innerHTML = '<p style="text-align:center;padding:40px;color:#999">加载失败，请访问 <a href="https://ailens.news">ailens.news</a></p>';
+}
+}
+loadContent();
+</script>
+</body>
+</html>

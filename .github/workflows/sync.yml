@@ -1,0 +1,106 @@
+name: Sync from ailens.news
+on:
+  schedule:
+    - cron: '30 22 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch and render daily content
+        run: |
+          # Fetch latest feed
+          curl -s https://ailens.news/feed.json -o /tmp/feed.json
+          python3 << 'PYEOF'
+import json, datetime
+
+feed = json.load(open('/tmp/feed.json'))
+items = feed.get('items', [])
+if not items:
+    print("No items found")
+    exit(1)
+
+# Generate static pages
+now = datetime.datetime.now()
+today = now.strftime('%Y-%m-%d')
+
+# Build index.html with recent 7 days
+TAG_COLORS = {'technology':'#3b82f6','application':'#10b981','hardware':'#f59e0b','thought':'#8b5ef6'}
+TAG_NAMES = {'technology':'技术','application':'应用','hardware':'硬件','thought':'思想'}
+
+cards = []
+for item in items[:7]:
+    date_str = item.get('date_published', '')
+    title = item.get('title', 'AI 日报')
+    url = item.get('url', 'https://ailens.news')
+    sub_items = item.get('_items', [])
+    
+    items_html = ''
+    for it in sub_items:
+        cat = it.get('category', '')
+        tag = TAG_NAMES.get(cat, cat)
+        color = TAG_COLORS.get(cat, '#999')
+        items_html += f'<li><span class="tag" style="background:{color}">{tag}</span> {it.get("title","")}</li>\n'
+    
+    cards.append(f'''<div class="card">
+<h3>{title}</h3>
+<ul class="items">{items_html}</ul>
+<a href="{url}" class="read-more" target="_blank" rel="noopener">📖 在 ailens.news 阅读全文 →</a>
+</div>''')
+
+html = f'''<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 日报 · 每日精选</title>
+<meta name="description" content="每日 AI 新闻精选，涵盖技术、应用、硬件、思想四大维度">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://ailens.news/">
+<style>
+*{{margin:0;padding:0;box-sizing:border-box}}
+body{{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC",sans-serif;background:#f8f9fa;color:#333;line-height:1.6}}
+.container{{max-width:800px;margin:0 auto;padding:20px}}
+header{{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:40px 20px;text-align:center}}
+header h1{{font-size:2rem;margin-bottom:10px}}
+header p{{opacity:.9;font-size:1rem}}
+.card{{background:#fff;border-radius:12px;padding:24px;margin:20px 0;box-shadow:0 2px 8px rgba(0,0,0,.08)}}
+.card h3{{color:#667eea;margin-bottom:12px;font-size:1.15rem}}
+.card .items{{list-style:none}}
+.card .items li{{padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:.95rem}}
+.card .items li:last-child{{border:none}}
+.card .items li span.tag{{display:inline-block;color:#fff;padding:1px 8px;border-radius:10px;font-size:.75rem;margin-right:6px;vertical-align:middle}}
+.read-more{{display:inline-block;margin-top:12px;color:#667eea;text-decoration:none;font-weight:600;font-size:.9rem}}
+.read-more:hover{{text-decoration:underline}}
+footer{{text-align:center;padding:40px 20px;color:#999;font-size:.85rem}}
+footer a{{color:#667eea}}
+</style>
+</head>
+<body>
+<header>
+<h1>🤖 AI 日报</h1>
+<p>每日 AI 新闻精选 · 技术 / 应用 / 硬件 / 思想</p>
+<p style="margin-top:10px;font-size:.85rem">📡 全文阅读：<a href="https://ailens.news" style="color:#ffd700;font-weight:600">ailens.news</a></p>
+</header>
+<div class="container">
+{"".join(cards)}
+</div>
+<footer>
+<p>内容自动同步自 <a href="https://ailens.news">ailens.news</a> · 每日 06:30(UTC+8) 更新 · 镜像站</p>
+</footer>
+</body>
+</html>'''
+
+open('index.html', 'w').write(html)
+print(f"Generated index.html with {len(items)} days of content")
+PYEOF
+      
+      - name: Deploy
+        run: |
+          git config user.name "AI News Bot"
+          git config user.email "bot@ailens.news"
+          git add -A
+          git diff --staged --quiet || git commit -m "sync: $(date +%Y-%m-%d)"
+          git push
